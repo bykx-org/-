@@ -1,0 +1,48 @@
+#include <board.h>
+
+static __IO uint32_t g_system_tick = 0;
+
+void systick_init(void)         
+{
+#define NVIC_VTOR_MASK              0x3FFFFF80
+#ifdef  VECT_TAB_RAM
+    SCB->VTOR  = (0x10000000 & NVIC_VTOR_MASK);
+#else
+    SCB->VTOR  = (0x08000000 & NVIC_VTOR_MASK);
+#endif
+
+    SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
+    SysTick->LOAD = 0xFFFF;
+    SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
+}
+
+void delay_us(uint32_t _us)
+{
+    uint32_t ticks;
+    uint32_t told, tnow, tcnt = 0;
+
+    ticks = _us * (SystemCoreClock / 1000000);
+    told = SysTick->VAL;
+
+    while (1)
+    {
+        tnow = SysTick->VAL;
+
+        if (tnow != told)
+        {
+            if (tnow < told)
+                tcnt += told - tnow;
+            else
+                tcnt += SysTick->LOAD - tnow + told;
+
+            told = tnow;
+
+            if (tcnt >= ticks)
+                break;
+        }
+    }
+}
+
+void delay_ms(uint32_t _ms) { delay_us(_ms * 1000); }
+void delay_1ms(uint32_t ms) { delay_us(ms * 1000); }
+void delay_1us(uint32_t us) { delay_us(us); }
